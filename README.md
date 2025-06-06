@@ -1,6 +1,6 @@
 # mural fork for FYSETC E4
 
-![FYSETC_E4](/images/doc/fysetc_e4.jpg)
+![FYSETC_E4](/images/doc/fysetc-e4.jpg)
 
 # [getmural.me](https://getmural.me)
 
