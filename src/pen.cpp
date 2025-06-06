@@ -45,8 +45,11 @@ void doSlowMove(Pen* pen, int startDegree, int targetDegree, int speedDegPerSec)
 
 Pen::Pen()
 {
+    pinMode(SERVO_PWR_PIN, OUTPUT);
+    digitalWrite(SERVO_PWR_PIN, HIGH);
+
     servo = new Servo();
-    servo->attach(2);
+    servo->attach(SERVO_CTRL_PIN);
     servo->write(90);
     currentPosition = 90;
 }

@@ -1,20 +1,24 @@
 #include "movement.h"
 #include "display.h"
 #include <stdexcept>
+#include <TMCStepper.h>
 
 Movement::Movement(Display *display)
 {
     this->display = display;
+
+    initUartSteppers();
    
     leftMotor = new AccelStepper(AccelStepper::DRIVER, LEFT_STEP_PIN, LEFT_DIR_PIN);
     leftMotor->setEnablePin(LEFT_ENABLE_PIN);
     leftMotor->setMaxSpeed(moveSpeedSteps);
-    leftMotor->setPinsInverted(true);
+    
     leftMotor->disableOutputs();
 
     rightMotor = new AccelStepper(AccelStepper::DRIVER, RIGHT_STEP_PIN, RIGHT_DIR_PIN);
     rightMotor->setEnablePin(RIGHT_ENABLE_PIN);
     rightMotor->setMaxSpeed(moveSpeedSteps);
+    rightMotor->setPinsInverted(true);
     rightMotor->disableOutputs();
 
     topDistance = -1;
@@ -23,6 +27,43 @@ Movement::Movement(Display *display)
     homed = false;
     startedHoming = false;
 };
+
+void Movement::initUartSteppers()
+{
+    HardwareSerial tmcSerial(2);
+    tmcSerial.begin(115200, SERIAL_8N1, DRIVERS_UART_RX, DRIVERS_UART_TX);
+    while (!tmcSerial);
+
+    Serial.println("TMC UART initialized");
+
+    TMC2209Stepper drv1(&tmcSerial, DRIVERS_R_SENSE, 1); 
+    TMC2209Stepper drv3(&tmcSerial, DRIVERS_R_SENSE, 3);
+
+    auto version1 = drv1.version();
+    if (version1 != 0x21) {
+        Serial.println("Driver 1 version mismatch!");
+        Serial.println("Expected version 0x21, got: " + String(version1, HEX));
+        while (1) {};
+    }
+    auto version3 = drv3.version();
+    if (version3 != 0x21) {
+        Serial.println("Driver 3 version mismatch!");
+        Serial.println("Expected version 0x21, got: " + String(version3, HEX));
+        while (1) {};
+    }
+
+    drv1.toff(5);
+    drv1.rms_current(400);
+    drv1.mstep_reg_select(true);
+    drv1.microsteps(16);
+    drv1.push();
+
+    drv3.toff(5);
+    drv3.rms_current(400);
+    drv3.mstep_reg_select(true);
+    drv3.microsteps(16);
+    drv3.push();
+}
 
 void Movement::setTopDistance(int distance) {
     Serial.printf("Top distance set to %s\n", String(distance));
@@ -102,7 +143,7 @@ Movement::Point Movement::getHomeCoordinates() {
         return Point(0, 0);
     }
 
-    return Point(width / 2, HOME_Y_OFFSET_MM);
+    return Point(width / 2, HOME_Y_OFFSET);
 }
 
 int Movement::extendToHome()
@@ -264,13 +305,13 @@ Movement::Point Movement::getCoordinates() {
     return Movement::Point(X, Y);
 }
 
-void Movement::extend1000mm() {
-    const int steps = int((1000 / circumference) * stepsPerRotation);
-
+void Movement::extend100mm() {
+    auto steps = int((100 / circumference) * stepsPerRotation);
+    
     leftMotor->move(steps);
     leftMotor->setSpeed(moveSpeedSteps);
 
-    rightMotor->move(steps);
+    rightMotor->move(-steps);
     rightMotor->setSpeed(moveSpeedSteps);
 
     moving = true;
